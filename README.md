@@ -2,9 +2,8 @@
 
 ## Mở đầu
 
-Nhiều công ty không cho phép AI agent (Claude, Copilot, hay bất kỳ coding
-assistant nào) được thấy token/API key thật, nhưng agent lại cần chạy
-integration test chống lại một API thật. `apiproxy` giải quyết việc đó bằng
+Agent cần chạy
+integration test chống lại một API thật. `apiproxy` là
 một reverse proxy chạy local: nó giữ token, tự thêm header `Authorization`
 vào mỗi request, và agent chỉ bao giờ thấy một địa chỉ loopback như
 `http://127.0.0.1:8787/orders`.
@@ -167,53 +166,6 @@ cần thấy token để biết.
 Tương tự, `fingerprint`/`issuer`/`expires_at` ở `/_proxy/routes` giải thích
 một lỗi 401 bất ngờ (token hết hạn, hoặc token đang nạp không phải token
 bạn nghĩ) mà không hề để lộ giá trị token.
-
-## Bảo mật — đọc phần này
-
-**Những gì proxy bảo vệ được:**
-
-- Token không bao giờ nằm trong test code, repo, biến môi trường của agent,
-  hay bất kỳ response nào agent đọc được.
-- Upstream của mỗi route cố định tại thời điểm load config; không request
-  nào (Host header, absolute-form URI, query param...) có thể đổi đích đến
-  — proxy không thể bị biến thành open relay để leak token ra host khác.
-- Header client tự gửi lên (`Authorization`, `Cookie`,
-  `X-Forwarded-For/Host/Proto`, `Proxy-Authorization`, `Forwarded`) bị xoá
-  trước khi credential thật được gắn vào, nên client không thể giả mạo hay
-  "seed" trước giá trị của chính header đó.
-- `/_proxy/*` không bao giờ được forward lên upstream, nên không có cách
-  nào để request đến các endpoint debug mang theo credential ra ngoài.
-- Proxy chỉ bind loopback (`127.0.0.1`/`::1`/`localhost`), kèm kiểm tra Host
-  header ở tầng guard riêng để chặn DNS rebinding — hai lớp, không chỉ dựa
-  vào việc bind loopback.
-
-**Những gì proxy KHÔNG bảo vệ được** (đây là phần không được phép nói nhẹ
-đi): trong lúc `apiproxy serve` đang chạy, token nằm dưới dạng plaintext
-trong memory của chính process đó, suốt thời gian proxy sống. Trên Windows,
-bất kỳ process nào chạy dưới **cùng user Windows** đều có thể đọc được nó
-bằng `OpenProcess` + `ReadProcessMemory`, không cần quyền đặc biệt nào.
-DPAPI và passphrase chỉ bảo vệ token **ở trạng thái lưu trữ** (at rest) —
-tức là blob bị copy ra khỏi máy, bị user Windows khác đọc, hoặc lọt qua
-repo/backup/roaming profile sync. DPAPI `CurrentUser` là ranh giới theo
-*user*, không phải theo *process*, và không có gì trong proxy thay đổi
-được điều đó khi `serve` đang chạy.
-
-Nếu agent của bạn tuyệt đối không được có khả năng lấy được token (dù chỉ
-trên lý thuyết), same-user là không đủ: hãy chạy agent dưới một OS user
-riêng, một container, hoặc một VM. Same-user chỉ là một tư thế tiện lợi
-(convenience posture), không phải một ranh giới bảo mật.
-
-Biến môi trường `APIPROXY_PASSPHRASE` (dùng cho `login` không tương tác và
-cho `serve` bỏ qua prompt) tiện cho CI/script, nhưng đặt passphrase vào môi
-trường của process khiến nó đọc được bởi process khác chạy cùng user —
-đánh mất toàn bộ lớp bảo vệ at-rest mà passphrase mang lại. `apiproxy` sẽ
-in cảnh báo ra stderr mỗi khi nó đọc passphrase từ biến này; ưu tiên dùng
-prompt tương tác khi có thể.
-
-Trên macOS/Linux, `serve` không có DPAPI để dùng nên rơi vào "dev mode": đọc
-token thẳng từ biến môi trường `APIPROXY_TOKEN_<PROFILE>` (không mã hoá,
-không encrypted storage nào cả). Mode này chỉ để smoke-test chính proxy
-trên máy dev, không phải để giữ credential thật.
 
 ## Lệnh và flag
 
