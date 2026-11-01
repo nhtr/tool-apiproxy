@@ -1,0 +1,53 @@
+# Build output
+bin/
+dist/
+
+# Go binaries. The Windows target is apiproxy.exe; the anchored /apiproxy
+# catches a stray `go build ./cmd/apiproxy` in the module root, which writes
+# a binary named after the package. It must stay anchored with the leading
+# slash: an unanchored `apiproxy` would match the cmd/apiproxy/ directory and
+# silently ignore the entire CLI.
+*.exe
+*.dll
+*.so
+*.dylib
+/apiproxy
+
+# Go test and coverage artifacts
+*.test
+*.out
+coverage.*
+cover.html
+
+# Go workspace files. These are per-developer and pin local module paths,
+# so they must not be shared.
+go.work
+go.work.sum
+
+# Secrets. None of these belong in the repo, and this tool exists precisely
+# to keep credentials out of places an agent can read. The real config lives
+# in %AppData% and the encrypted token blobs in %LocalAppData%, both outside
+# the repo, but ignore local copies in case someone drops one here while
+# testing.
+*.env
+.env
+.env.*
+config.toml
+config.local.toml
+*.pem
+*.key
+secrets/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
